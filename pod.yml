@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: producer
+spec:
+  containers:
+  - name: main
+    image: nginx
+    volumeMounts:
+    - name: data
+      mountPath: /var/www/html
+  volumes:
+  - name: data
+    csi:
+      driver: hostpath.csi.k8s.io

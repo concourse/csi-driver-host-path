@@ -27,6 +27,8 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
+	"github.com/concourse/baggageclaim/baggageclaimcmd"
+	"github.com/concourse/flag"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 )
@@ -44,8 +46,30 @@ type nonBlockingGRPCServer struct {
 func (s *nonBlockingGRPCServer) Start(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
 
 	s.wg.Add(1)
+	glog.Info("its us!")
 
 	go s.serve(endpoint, ids, cs, ns)
+
+	glog.V(4).Info("starting baggageclaim server")
+	// start baggageclaim server
+	bagCmd := baggageclaimcmd.BaggageclaimCommand{}
+	lager := flag.Lager{LogLevel: "info"}
+	lager.SetWriterSink(os.Stdout)
+	bagCmd.Logger = lager
+	bagCmd.BindIP = flag.IP{net.IPv4(127, 0, 0, 1)}
+	bagCmd.BindPort = 7788
+	bagCmd.DebugBindIP = flag.IP{net.IPv4(127, 0, 0, 1)}
+	bagCmd.DebugBindPort = 7787
+	bagCmd.Driver = "overlay"
+	bagCmd.VolumesDir = "/baggageclaim/volumes"
+	bagCmd.OverlaysDir = "/baggageclaim/overlay"
+
+	glog.V(4).Info("creating volumes and overlay directories")
+	os.Mkdir("/baggageclaim/volumes", os.ModeDir)
+	os.Mkdir("/baggageclaim/overlay", os.ModeDir)
+
+	glog.V(4).Info("starting baggageclaim server")
+	go bagCmd.Execute(nil)
 
 	return
 }

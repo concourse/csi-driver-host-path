@@ -67,7 +67,7 @@ endif
 # separated by semicolon. An empty variable or empty entry (= just a
 # semicolon) builds for the default platform of the current Go
 # toolchain.
-BUILD_PLATFORMS =
+BUILD_PLATFORMS = linux amd64
 
 # This builds each command (= the sub-directories of ./cmd) for the target platform(s)
 # defined by BUILD_PLATFORMS.
@@ -81,12 +81,12 @@ $(CMDS:%=build-%): build-%: check-go-version-go
 	done
 
 $(CMDS:%=container-%): container-%: build-%
-	docker build -t $*:latest -f $(shell if [ -e ./cmd/$*/Dockerfile ]; then echo ./cmd/$*/Dockerfile; else echo Dockerfile; fi) --label revision=$(REV) .
+	docker build -t taylorsilva/csi-hostpath:latest -f $(shell if [ -e ./cmd/$*/Dockerfile ]; then echo ./cmd/$*/Dockerfile; else echo Dockerfile; fi) --label revision=$(REV) .
 
 $(CMDS:%=push-%): push-%: container-%
 	set -ex; \
 	push_image () { \
-		docker tag $*:latest $(IMAGE_NAME):$$tag; \
+		docker tag taylorsilva/csi-hostpath:latest $(IMAGE_NAME):$$tag; \
 		docker push $(IMAGE_NAME):$$tag; \
 	}; \
 	for tag in $(IMAGE_TAGS); do \

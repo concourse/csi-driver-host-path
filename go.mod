@@ -3,6 +3,9 @@ module github.com/kubernetes-csi/csi-driver-host-path
 go 1.12
 
 require (
+	code.cloudfoundry.org/lager v1.1.0
+	github.com/concourse/baggageclaim v1.8.0
+	github.com/concourse/flag v0.0.0-20180907155614-cb47f24fff1c
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/protobuf v1.3.2
