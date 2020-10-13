@@ -84,22 +84,7 @@ $(CMDS:%=container-%): container-%: build-%
 	docker build -t taylorsilva/baggageclaim:latest -f $(shell if [ -e ./cmd/$*/Dockerfile ]; then echo ./cmd/$*/Dockerfile; else echo Dockerfile; fi) --label revision=$(REV) .
 
 $(CMDS:%=push-%): push-%: container-%
-	set -ex; \
-	push_image () { \
-		docker tag taylorsilva/baggageclaim:latest $(IMAGE_NAME):$$tag; \
-		docker push $(IMAGE_NAME):$$tag; \
-	}; \
-	for tag in $(IMAGE_TAGS); do \
-		if [ "$$tag" = "canary" ] || echo "$$tag" | grep -q -e '-canary$$'; then \
-			: "creating or overwriting canary image"; \
-			push_image; \
-		elif docker pull $(IMAGE_NAME):$$tag 2>&1 | tee /dev/stderr | grep -q "manifest for $(IMAGE_NAME):$$tag not found"; then \
-			: "creating release image"; \
-			push_image; \
-		else \
-			: "release image $(IMAGE_NAME):$$tag already exists, skipping push"; \
-		fi; \
-	done
+		docker push taylorsilva/baggageclaim:latest
 
 build: $(CMDS:%=build-%)
 container: $(CMDS:%=container-%)
