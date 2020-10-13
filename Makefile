@@ -15,4 +15,11 @@
 CMDS=hostpathplugin
 all: build
 
+.PHONY: deploy
+
+deploy:
+	yq w --inplace ./deploy/kubernetes-1.17/hostpath/csi-hostpath-plugin.yaml \
+		--doc 2 'spec.template.metadata.labels.update' "prefix-$$RANDOM" && \
+	kubectl apply -f ./deploy/kubernetes-1.17/hostpath/
+
 include release-tools/build.make

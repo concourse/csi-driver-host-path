@@ -81,12 +81,12 @@ $(CMDS:%=build-%): build-%: check-go-version-go
 	done
 
 $(CMDS:%=container-%): container-%: build-%
-	docker build -t taylorsilva/csi-hostpath:latest -f $(shell if [ -e ./cmd/$*/Dockerfile ]; then echo ./cmd/$*/Dockerfile; else echo Dockerfile; fi) --label revision=$(REV) .
+	docker build -t taylorsilva/baggageclaim:latest -f $(shell if [ -e ./cmd/$*/Dockerfile ]; then echo ./cmd/$*/Dockerfile; else echo Dockerfile; fi) --label revision=$(REV) .
 
 $(CMDS:%=push-%): push-%: container-%
 	set -ex; \
 	push_image () { \
-		docker tag taylorsilva/csi-hostpath:latest $(IMAGE_NAME):$$tag; \
+		docker tag taylorsilva/baggageclaim:latest $(IMAGE_NAME):$$tag; \
 		docker push $(IMAGE_NAME):$$tag; \
 	}; \
 	for tag in $(IMAGE_TAGS); do \
