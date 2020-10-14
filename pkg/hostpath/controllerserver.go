@@ -60,17 +60,17 @@ func NewControllerServer(ephemeral bool, nodeID string) *controllerServer {
 	return &controllerServer{
 		caps: getControllerServiceCapabilities(
 			[]csi.ControllerServiceCapability_RPC_Type{
-				csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+				csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME, //provisioner calls me
 				csi.ControllerServiceCapability_RPC_CLONE_VOLUME,
 				csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
-				csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+				csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME, //attacher calls me
 			}),
 		nodeID: nodeID,
 	}
 }
 
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	glog.V(4).Infof("Controller CreateVolume called: %v", req)
+	glog.V(4).Infof("concourse: Controller CreateVolume called: %v", req)
 	if err := cs.validateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
 		glog.V(3).Infof("invalid create volume req: %v", req)
 		return nil, err
@@ -206,7 +206,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	glog.V(4).Infof("Controller DeleteVolume called: %v", req)
+	glog.V(4).Infof("concourse: Controller DeleteVolume called: %v", req)
 	// Check arguments
 	if len(req.GetVolumeId()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
@@ -266,13 +266,13 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 }
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	glog.V(4).Infof("Controller PublishVolume called: %v", req)
-	return nil, status.Error(codes.Unimplemented, "")
+	glog.V(4).Infof("concourse: Controller PublishVolume called: %v", req)
+	return &csi.ControllerPublishVolumeResponse{PublishContext: map[string]string{"keyPublishContext": "I'm from publish context"}}, nil
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	glog.V(4).Infof("Controller UnPublishVolume called: %v", req)
-	return nil, status.Error(codes.Unimplemented, "")
+	glog.V(4).Infof("concourse: Controller UnPublishVolume called: %v", req)
+	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
 func (cs *controllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
