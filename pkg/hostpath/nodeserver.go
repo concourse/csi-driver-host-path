@@ -40,6 +40,8 @@ type nodeServer struct {
 	nodeID            string
 	ephemeral         bool
 	maxVolumesPerNode int64
+	logger            lager.Logger
+	bagClient         bclient.Client
 }
 
 func NewNodeServer(nodeId string, ephemeral bool, maxVolumesPerNode int64) *nodeServer {
@@ -47,6 +49,14 @@ func NewNodeServer(nodeId string, ephemeral bool, maxVolumesPerNode int64) *node
 		nodeID:            nodeId,
 		ephemeral:         ephemeral,
 		maxVolumesPerNode: maxVolumesPerNode,
+		logger:            lager.NewLogger("baggageclaim-client"),
+		bagClient: bclient.NewWithHTTPClient("http://127.0.0.1:7788",
+			&http.Client{
+				Transport: &http.Transport{
+					ResponseHeaderTimeout: 1 * time.Minute,
+				},
+				Timeout: 5 * time.Minute,
+			}),
 	}
 }
 
@@ -64,18 +74,25 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, "Target path missing in request")
 	}
 
-	glog.V(4).Info("creating baggageclaim client")
-	bagClient := bclient.NewWithHTTPClient("http://127.0.0.1:7788",
-		&http.Client{
-			Transport: &http.Transport{
-				ResponseHeaderTimeout: 1 * time.Minute,
-			},
-			Timeout: 5 * time.Minute,
-		})
+	glog.V(4).Info("concourse: requesting baggageclaim to create volume")
 
-	glog.V(4).Info("requesting baggageclaim to create volume")
-	volume, err := bagClient.CreateVolume(lager.NewLogger("client"), req.VolumeId, baggageclaim.VolumeSpec{
-		Strategy:   baggageclaim.EmptyStrategy{},
+	volumeContext := req.GetVolumeContext()
+	var strategy baggageclaim.Strategy
+
+	if id, ok := volumeContext["SourceVolumeId"]; ok {
+		glog.V(4).Info("concourse: using COWStrategy, source volume id found: " + id)
+		srcVolume, _, err := ns.bagClient.LookupVolume(ns.logger, id)
+		if err != nil {
+			return nil, err
+		}
+		strategy = baggageclaim.COWStrategy{Parent: srcVolume}
+	} else {
+		glog.V(4).Info("concourse: using EmptyStrategy")
+		strategy = baggageclaim.EmptyStrategy{}
+	}
+
+	volume, err := ns.bagClient.CreateVolume(ns.logger, req.VolumeId, baggageclaim.VolumeSpec{
+		Strategy:   strategy,
 		Properties: map[string]string{},
 	})
 	if err != nil {
@@ -108,7 +125,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	mounter := mount.New("")
 	path := volume.Path()
-	glog.V(4).Infof("mounting baggageclaim volume at %s", path)
+	glog.V(4).Infof("concourse: mounting baggageclaim volume at %s", path)
 	if err := mounter.Mount(path, targetPath, "", options); err != nil {
 		return nil, err
 	}
@@ -280,7 +297,8 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	if vol.Ephemeral {
 		glog.V(4).Infof("deleting volume %s", volumeID)
-		if err := deleteHostpathVolume(volumeID); err != nil && !os.IsNotExist(err) {
+		err := ns.bagClient.DestroyVolume(ns.logger, volumeID)
+		if err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete volume: %s", err))
 		}
 	}

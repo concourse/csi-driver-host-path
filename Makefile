@@ -17,6 +17,7 @@ all: build
 
 .PHONY: deploy logs
 
+# deploy the modified CSI driver
 deploy:
 	yq w --inplace ./deploy/kubernetes-1.17/hostpath/csi-hostpath-plugin.yaml \
 		--doc 2 'spec.template.metadata.labels.update' "prefix-$$RANDOM" && \
@@ -25,4 +26,30 @@ deploy:
 logs:
 	kubectl logs pod/csi-hostpathplugin-0 -c hostpath | grep concourse
 
+output-poc:
+	# create a PVC
+	kubectl apply -f ./poc/artifact-output.yaml ;\
+	# Create a Pod on node1 that uses and writes to the PVC
+	kubectl apply -f ./poc/output-pod.yaml ;\
+	# Delete the Pod and see that the PVC and PV is still there
+
+clean-output:
+	kubectl delete pod/output ;\
+	kubectl delete pvc/artifact-output ;\
+	echo "You will need to manually delete the PV associated to the PVC"
+
+
+input-poc:
+	echo "Input POC"
+	# Create a PVC that uses the previous PVC as its data source
+	kubectl apply -f ./poc/artifact-input.yaml ;\
+	# Create Pod thatreads data from the PVC
+	kubectl apply -f ./poc/input-pod.yaml
+
+clean-input:
+	kubectl delete pod/input ;\
+	kubectl delete pvc/artifact-input ;\
+	echo "You will need to manually delete the PV associated to the PVC"
+
+# make push will build the app, image, and push the image to docker hub
 include release-tools/build.make

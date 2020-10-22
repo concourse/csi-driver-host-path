@@ -106,15 +106,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, "cannot have both block and mount access type")
 	}
 
-	var requestedAccessType accessType
-
-	if accessTypeBlock {
-		requestedAccessType = blockAccess
-	} else {
-		// Default to mount.
-		requestedAccessType = mountAccess
-	}
-
 	// Check for maximum available capacity
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity >= maxStorageCapacity {
@@ -133,10 +124,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		if req.GetVolumeContentSource() != nil {
 			volumeSource := req.VolumeContentSource
 			switch volumeSource.Type.(type) {
-			case *csi.VolumeContentSource_Snapshot:
-				if volumeSource.GetSnapshot() != nil && exVol.ParentSnapID != volumeSource.GetSnapshot().GetSnapshotId() {
-					return nil, status.Error(codes.AlreadyExists, "existing volume source snapshot id not matching")
-				}
 			case *csi.VolumeContentSource_Volume:
 				if volumeSource.GetVolume() != nil && exVol.ParentVolID != volumeSource.GetVolume().GetVolumeId() {
 					return nil, status.Error(codes.AlreadyExists, "existing volume source volume id not matching")
@@ -157,37 +144,20 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	volumeID := uuid.NewUUID().String()
-
-	vol, err := createHostpathVolume(volumeID, req.GetName(), capacity, requestedAccessType, false /* ephemeral */)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to create volume %v: %v", volumeID, err)
-	}
-	glog.V(4).Infof("created volume %s at path %s", vol.VolID, vol.VolPath)
+	volumeContext := req.GetParameters()
 
 	if req.GetVolumeContentSource() != nil {
-		path := getVolumePath(volumeID)
 		volumeSource := req.VolumeContentSource
 		switch volumeSource.Type.(type) {
-		case *csi.VolumeContentSource_Snapshot:
-			if snapshot := volumeSource.GetSnapshot(); snapshot != nil {
-				err = loadFromSnapshot(capacity, snapshot.GetSnapshotId(), path, requestedAccessType)
-				vol.ParentSnapID = snapshot.GetSnapshotId()
-			}
 		case *csi.VolumeContentSource_Volume:
 			if srcVolume := volumeSource.GetVolume(); srcVolume != nil {
-				err = loadFromVolume(capacity, srcVolume.GetVolumeId(), path, requestedAccessType)
-				vol.ParentVolID = srcVolume.GetVolumeId()
+				glog.V(4).Infof("passing source volume id into VolumeContext: %s", srcVolume.GetVolumeId())
+				// TODO for now pass source volume id down as context
+				volumeContext["sourceVolumeID"] = srcVolume.GetVolumeId()
 			}
 		default:
-			err = status.Errorf(codes.InvalidArgument, "%v not a proper volume source", volumeSource)
+			status.Errorf(codes.InvalidArgument, "%v not a proper volume source", volumeSource)
 		}
-		if err != nil {
-			if delErr := deleteHostpathVolume(volumeID); delErr != nil {
-				glog.V(2).Infof("deleting hostpath volume %v failed: %v", volumeID, delErr)
-			}
-			return nil, err
-		}
-		glog.V(4).Infof("successfully populated volume %s", vol.VolID)
 	}
 
 	topologies := []*csi.Topology{&csi.Topology{
@@ -198,7 +168,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		Volume: &csi.Volume{
 			VolumeId:           volumeID,
 			CapacityBytes:      req.GetCapacityRange().GetRequiredBytes(),
-			VolumeContext:      req.GetParameters(),
+			VolumeContext:      volumeContext,
 			ContentSource:      req.GetVolumeContentSource(),
 			AccessibleTopology: topologies,
 		},

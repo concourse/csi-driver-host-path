@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: output
+spec:
+  nodeSelector:
+    cloud.google.com/gke-nodepool: pool-1
+  containers:
+  - name: output
+    image: ubuntu
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "outputting date to a file..."
+        date > /tmp/output/some-file
+        sleep 999h
+    volumeMounts:
+      - name: output-vol
+        mountPath: /tmp/output
+  volumes:
+    - name: output-vol
+      persistentVolumeClaim:
+        claimName: artifact-output
