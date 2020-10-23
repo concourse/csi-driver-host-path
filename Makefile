@@ -23,6 +23,16 @@ deploy:
 		--doc 2 'spec.template.metadata.labels.update' "prefix-$$RANDOM" && \
 	kubectl apply -f ./deploy/kubernetes-1.17/hostpath/
 
+# remove the driver and storage class
+csi-cleanup:
+	kubectl delete statefulset.apps/csi-hostpathplugin --wait=false ;\
+	kubectl delete statefulset.apps/csi-hostpath-provisioner --wait=false ;\
+	kubectl delete statefulset.apps/csi-hostpath-attacher --wait=false ;\
+	kubectl delete service/csi-hostpathplugin --wait=false ;\
+	kubectl delete pvc/csi-data-dir --wait=false ;\
+	kubectl delete csidrivers.storage.k8s.io/baggageclaim.concourse-ci.org --wait=false
+
+
 logs:
 	kubectl logs pod/csi-hostpathplugin-0 -c hostpath | grep concourse
 

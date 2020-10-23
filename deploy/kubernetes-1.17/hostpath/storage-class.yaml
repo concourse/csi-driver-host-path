@@ -1,0 +1,10 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: baggageclaim
+parameters:
+  theparamkey: I'm from storage class!
+provisioner: baggageclaim.concourse-ci.org
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+allowVolumeExpansion: false
