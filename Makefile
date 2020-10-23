@@ -18,7 +18,7 @@ all: build
 .PHONY: deploy logs
 
 # deploy the modified CSI driver
-deploy:
+csi-deploy:
 	yq w --inplace ./deploy/kubernetes-1.17/hostpath/csi-hostpath-plugin.yaml \
 		--doc 2 'spec.template.metadata.labels.update' "prefix-$$RANDOM" && \
 	kubectl apply -f ./deploy/kubernetes-1.17/hostpath/
@@ -30,7 +30,8 @@ csi-cleanup:
 	kubectl delete statefulset.apps/csi-hostpath-attacher --wait=false ;\
 	kubectl delete service/csi-hostpathplugin --wait=false ;\
 	kubectl delete pvc/csi-data-dir --wait=false ;\
-	kubectl delete csidrivers.storage.k8s.io/baggageclaim.concourse-ci.org --wait=false
+	kubectl delete csidrivers.storage.k8s.io/baggageclaim.concourse-ci.org --wait=false ;\
+	kubectl delete sc baggageclaim
 
 
 logs:

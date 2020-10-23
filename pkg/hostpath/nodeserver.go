@@ -79,7 +79,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	volumeContext := req.GetVolumeContext()
 	var strategy baggageclaim.Strategy
 
-	if id, ok := volumeContext["SourceVolumeId"]; ok {
+	glog.V(4).Infof("concourse: volumetContext: %s", volumeContext)
+	if id, ok := volumeContext["sourceVolumeID"]; ok {
 		glog.V(4).Info("concourse: using COWStrategy, source volume id found: " + id)
 		srcVolume, _, err := ns.bagClient.LookupVolume(ns.logger, id)
 		if err != nil {
@@ -293,13 +294,13 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err = os.RemoveAll(targetPath); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	glog.V(4).Infof("hostpath: volume %s has been unpublished.", targetPath)
+	glog.V(4).Infof("concourse: volume %s has been unpublished.", targetPath)
 
 	if vol.Ephemeral {
-		glog.V(4).Infof("deleting volume %s", volumeID)
+		glog.V(4).Infof("concourse: deleting volume %s", volumeID)
 		err := ns.bagClient.DestroyVolume(ns.logger, volumeID)
 		if err != nil {
-			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete volume: %s", err))
+			return nil, status.Error(codes.Internal, fmt.Sprintf("concourse: failed to delete volume: %s", err))
 		}
 	}
 
