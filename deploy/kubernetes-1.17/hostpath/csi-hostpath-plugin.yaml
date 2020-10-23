@@ -44,7 +44,7 @@ spec:
     metadata:
       labels:
         app: csi-hostpathplugin
-        update: prefix-17275
+        update: prefix-24470
     spec:
       containers:
         - name: node-driver-registrar

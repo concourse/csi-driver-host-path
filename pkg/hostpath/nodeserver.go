@@ -272,9 +272,15 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	targetPath := req.GetTargetPath()
 	volumeID := req.GetVolumeId()
 
-	vol, err := getVolumeByID(volumeID)
+	vol, _, err := ns.bagClient.LookupVolume(ns.logger, volumeID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	if vol != nil {
+		err := ns.bagClient.DestroyVolume(ns.logger, volumeID)
+		if err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("concourse: failed to delete volume: %s", err))
+		}
 	}
 
 	// Unmount only if the target path is really a mount point.
@@ -295,14 +301,6 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	glog.V(4).Infof("concourse: volume %s has been unpublished.", targetPath)
-
-	if vol.Ephemeral {
-		glog.V(4).Infof("concourse: deleting volume %s", volumeID)
-		err := ns.bagClient.DestroyVolume(ns.logger, volumeID)
-		if err != nil {
-			return nil, status.Error(codes.Internal, fmt.Sprintf("concourse: failed to delete volume: %s", err))
-		}
-	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
