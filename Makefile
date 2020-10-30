@@ -19,11 +19,10 @@ all: build
 
 # deploy the modified CSI driver
 csi-deploy:
-	kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-attacher/release-3.0/deploy/kubernetes/rbac.yaml
-	kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-provisioner/release-2.0/deploy/kubernetes/rbac.yaml
-
+	kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-attacher/release-3.0/deploy/kubernetes/rbac.yaml ;\
+	kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-provisioner/release-2.0/deploy/kubernetes/rbac.yaml ;\
 	yq w --inplace ./deploy/kubernetes-1.17/hostpath/csi-hostpath-plugin.yaml \
-		--doc 2 'spec.template.metadata.labels.update' "prefix-$$RANDOM" && \
+		--doc 2 'spec.template.metadata.labels.update' "prefix-$$RANDOM" ;\
 	kubectl apply -f ./deploy/kubernetes-1.17/hostpath/
 
 # remove the driver and storage class
